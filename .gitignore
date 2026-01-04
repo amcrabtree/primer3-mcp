@@ -1,2 +1,9 @@
 CLAUDE.md
 lab_protocol.md
+
+.vscode/*
+.DS_Store
+.ipynb_checkpoints
+*.pyc
+.env
+.venv

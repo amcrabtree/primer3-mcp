@@ -41,6 +41,10 @@ def design_primers_with_protocol(input_data: PrimerDesignInput) -> PrimerDesignO
     min_product = 100
     max_product = min(len(cleaned_sequence), 1000)
 
+    # Ensure min_product doesn't exceed max_product
+    if min_product > max_product:
+        min_product = max_product
+
     # Build Primer3 global arguments with protocol parameters
     global_args = {
         "PRIMER_OPT_SIZE": input_data.primer_size_opt,

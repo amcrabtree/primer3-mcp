@@ -2,8 +2,8 @@
 
 from fastmcp import FastMCP
 
-from .models import PrimerDesignInput
-from .primer_design import design_primers_with_retry, design_primers_with_protocol
+from .api import design_primers as design_primers_lib
+from .api import troubleshoot_primers as troubleshoot_primers_lib
 
 mcp = FastMCP(name="primer3-mcp", version="0.1.0")
 
@@ -48,7 +48,7 @@ def design_primers(
     Returns:
         Dictionary with primer pairs and design information
     """
-    input_data = PrimerDesignInput(
+    result = design_primers_lib(
         sequence=sequence,
         primer_size_min=primer_size_min,
         primer_size_opt=primer_size_opt,
@@ -59,13 +59,11 @@ def design_primers(
         gc_clamp=gc_clamp,
         num_return=num_return,
     )
-
-    result = design_primers_with_protocol(input_data)
     return result.model_dump()
 
 
 @mcp.tool()
-def troubleshoot_design(sequence: str, num_return: int = 5) -> dict:
+def troubleshoot_primers(sequence: str, num_return: int = 5) -> dict:
     """
     Auto-retry primer design with progressively relaxed constraints.
 
@@ -84,9 +82,10 @@ def troubleshoot_design(sequence: str, num_return: int = 5) -> dict:
     Returns:
         Dictionary with primer pairs and troubleshooting information
     """
-    input_data = PrimerDesignInput(sequence=sequence, num_return=num_return)
-
-    result = design_primers_with_retry(input_data)
+    result = troubleshoot_primers_lib(
+        sequence=sequence,
+        num_return=num_return,
+    )
     return result.model_dump()
 
 

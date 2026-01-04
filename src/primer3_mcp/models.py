@@ -58,6 +58,15 @@ class PrimerInfo(BaseModel):
     rep: float = Field(..., description="Mispriming/Mishyb library similarity")
     sequence: str = Field(..., description="Primer sequence (5'→3')")
 
+    def __str__(self) -> str:
+        """Human-readable primer summary for notebooks."""
+        return (
+            f"Primer: {self.sequence} | "
+            f"Tm: {self.tm:.1f}°C | "
+            f"GC: {self.gc_percent:.1f}% | "
+            f"Length: {self.length}bp"
+        )
+
 
 class PrimerPair(BaseModel):
     """A pair of left and right primers."""
@@ -68,6 +77,15 @@ class PrimerPair(BaseModel):
     product_size: int = Field(..., description="Amplicon size in base pairs")
     penalty: float = Field(..., description="Primer pair penalty score (lower is better)")
 
+    def __str__(self) -> str:
+        """Human-readable pair summary for notebooks."""
+        return (
+            f"Pair {self.pair_id}: {self.product_size}bp product | "
+            f"Penalty: {self.penalty:.2f}\n"
+            f"  Left:  {self.left_primer.sequence} (Tm: {self.left_primer.tm:.1f}°C)\n"
+            f"  Right: {self.right_primer.sequence} (Tm: {self.right_primer.tm:.1f}°C)"
+        )
+
 
 class PrimerDesignOutput(BaseModel):
     """Output from primer design process."""
@@ -77,3 +95,57 @@ class PrimerDesignOutput(BaseModel):
     troubleshooting_applied: Optional[str] = Field(
         None, description="Troubleshooting steps applied (if any)"
     )
+
+    def __str__(self) -> str:
+        """Human-readable output summary for notebooks."""
+        summary = f"Primer Design Results: {self.num_returned} pairs found"
+        if self.troubleshooting_applied:
+            summary += f"\nTroubleshooting: {self.troubleshooting_applied}"
+        return summary
+
+    def to_dataframe(self):
+        """
+        Convert primer pairs to pandas DataFrame for analysis.
+
+        Returns:
+            pandas.DataFrame with one row per primer pair
+
+        Raises:
+            ImportError: If pandas is not installed
+
+        Example:
+            >>> result = design_primers(sequence=seq)
+            >>> df = result.to_dataframe()
+            >>> df[['product_size', 'penalty']].sort_values('penalty')
+        """
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise ImportError(
+                "pandas is required for to_dataframe(). "
+                "Install with: pip install primer3-mcp[analysis]"
+            ) from e
+
+        rows = []
+        for pair in self.pairs:
+            rows.append({
+                'pair_id': pair.pair_id,
+                'product_size': pair.product_size,
+                'penalty': pair.penalty,
+                'left_start': pair.left_primer.start,
+                'left_length': pair.left_primer.length,
+                'left_tm': pair.left_primer.tm,
+                'left_gc': pair.left_primer.gc_percent,
+                'left_self_any': pair.left_primer.self_any,
+                'left_self_end': pair.left_primer.self_end,
+                'left_sequence': pair.left_primer.sequence,
+                'right_start': pair.right_primer.start,
+                'right_length': pair.right_primer.length,
+                'right_tm': pair.right_primer.tm,
+                'right_gc': pair.right_primer.gc_percent,
+                'right_self_any': pair.right_primer.self_any,
+                'right_self_end': pair.right_primer.self_end,
+                'right_sequence': pair.right_primer.sequence,
+            })
+
+        return pd.DataFrame(rows)

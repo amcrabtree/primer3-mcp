@@ -1,6 +1,10 @@
 # primer3-mcp
 
-An MCP server for designing PCR primers with Primer3, following lab protocols for optimal primer design.
+Design PCR primers with Primer3, following lab protocols for optimal primer design.
+
+Can be used as:
+1. **Python library** for Jupyter notebooks and scripts
+2. **MCP server** for Claude Desktop integration
 
 ## Features
 
@@ -8,19 +12,103 @@ An MCP server for designing PCR primers with Primer3, following lab protocols fo
 - **Auto-Troubleshooting**: Automatically retry with relaxed constraints if no primers found
 - **10-Feature Output**: Complete primer information including Tm, GC%, self-complementarity, and more
 - **Lab Protocol Compliant**: Follows established PCR primer design best practices
+- **Data Analysis Ready**: Export to pandas DataFrame for analysis
 
 ## Installation
 
 ```bash
-# Using uv
-uv venv
-uv pip install -e .
-
-# Or with pip
+# Basic installation
 pip install -e .
+
+# With Jupyter notebook support
+pip install -e ".[analysis]"
+
+# With development dependencies
+pip install -e ".[dev]"
 ```
 
 ## Usage
+
+### As Python Library
+
+Perfect for Jupyter notebooks, data analysis, and automation scripts.
+
+**See [examples/primer_design_demo.ipynb](examples/primer_design_demo.ipynb) for a complete interactive tutorial!**
+
+#### Quick Start
+
+```python
+from primer3_mcp import design_primers
+
+# Your sequence with [n] marking target region
+sequence = "GGGTCAGGTAGGAACGCGTGCCAGATCT[n]ACTAGTGATCAACCTCTGAAGAGGT"
+
+# Design primers
+result = design_primers(sequence=sequence, num_return=5)
+
+# Access results
+print(f"Found {result.num_returned} primer pairs")
+best_pair = result.pairs[0]
+print(f"Best product size: {best_pair.product_size}bp")
+print(f"Left primer:  {best_pair.left_primer.sequence}")
+print(f"Right primer: {best_pair.right_primer.sequence}")
+```
+
+#### Data Analysis with Pandas
+
+```python
+from primer3_mcp import design_primers
+
+# Design primers
+result = design_primers(sequence=sequence)
+
+# Convert to pandas DataFrame
+df = result.to_dataframe()
+
+# Analyze primer characteristics
+print(df[['pair_id', 'product_size', 'penalty', 'left_tm', 'right_tm']])
+
+# Filter by criteria
+good_primers = df[
+    (df['penalty'] < 1.0) &
+    (df['product_size'] > 200) &
+    (df['left_tm'].between(64, 66))
+]
+```
+
+#### Troubleshooting Difficult Sequences
+
+```python
+from primer3_mcp import troubleshoot_primers
+
+# Auto-retry with relaxed constraints
+result = troubleshoot_primers(sequence=difficult_sequence)
+
+if result.num_returned > 0:
+    print(f"Success! Found {result.num_returned} pairs")
+    if result.troubleshooting_applied:
+        print(f"Applied: {result.troubleshooting_applied}")
+else:
+    print("No primers found even with relaxed constraints")
+```
+
+#### Customizing Parameters
+
+```python
+from primer3_mcp import design_primers
+
+result = design_primers(
+    sequence=sequence,
+    primer_size_min=18,
+    primer_size_opt=22,
+    primer_size_max=27,
+    primer_tm_min=60.0,
+    primer_tm_opt=62.0,
+    primer_tm_max=64.0,
+    gc_clamp=1,
+    num_return=10
+)
+```
 
 ### As MCP Server with Claude Desktop
 
@@ -54,13 +142,15 @@ Design PCR primers with customizable parameters.
 - `gc_clamp`: Number of G/C bases at 3' end (default: 2)
 - `num_return`: Number of primer pairs to return (default: 5)
 
-**Example:**
-```python
-sequence = "GGGTCAGGTAGGAACGCGTGCCAGATCT...[n]...ACTAGTGATCAACCTCTGAAGAGGT"
-result = design_primers(sequence=sequence)
+**Example (via Claude Desktop):**
+```
+Design primers for this sequence:
+GGGTCAGGTAGGAACGCGTGCCAGATCT...[n]...ACTAGTGATCAACCTCTGAAGAGGT
 ```
 
-#### `troubleshoot_design`
+Claude will call the `design_primers` tool and return ranked primer pairs.
+
+#### `troubleshoot_primers`
 
 Auto-retry primer design with progressively relaxed constraints following lab protocol troubleshooting:
 1. Try GC clamp = 2
@@ -72,11 +162,13 @@ Auto-retry primer design with progressively relaxed constraints following lab pr
 - `sequence` (required): DNA sequence with `[n]` placeholder
 - `num_return`: Number of primer pairs to return (default: 5)
 
-**Example:**
-```python
-result = troubleshoot_design(sequence=sequence)
-# Returns primers with troubleshooting_applied field showing which relaxation worked
+**Example (via Claude Desktop):**
 ```
+I need primers for this difficult sequence, please troubleshoot if needed:
+GGGTCAGGTAGGAACGCGTGCCAGATCT...[n]...ACTAGTGATCAACCTCTGAAGAGGT
+```
+
+Claude will call `troubleshoot_primers` and report which constraint relaxations were applied.
 
 ### Output Format
 
@@ -105,7 +197,26 @@ Based on lab protocol for gene amplification:
 - Primers ranked by quality (first = best)
 - Right primer sequence is reverse complement (ready for ordering)
 
+## Examples
+
+See the [examples/](examples/) directory for complete tutorials:
+
+- **[primer_design_demo.ipynb](examples/primer_design_demo.ipynb)** - Complete walkthrough covering:
+  - Basic primer design
+  - Custom parameters
+  - Pandas integration and data analysis
+  - Troubleshooting difficult sequences
+  - Batch processing multiple genes
+  - Exporting results for ordering
+
 ## Development
+
+### Setup
+
+```bash
+# Install package with dev dependencies
+uv pip install -e ".[dev]"
+```
 
 ### Running Tests
 
@@ -118,6 +229,8 @@ uv run pytest -v
 ```
 primer3-mcp/
 ├── src/primer3_mcp/
+│   ├── __init__.py        # Public API exports
+│   ├── api.py             # Library functions
 │   ├── server.py          # FastMCP server & tools
 │   ├── primer_design.py   # Primer3 integration
 │   ├── models.py          # Pydantic models
