@@ -1,6 +1,8 @@
 CLAUDE.md
 lab_protocol.md
-
+src/primer3_mcp/__pycache__/*
+src/primer3_mcp/tests/__pycache__/*
+src/primer3_mcp/__pycache__/*
 .vscode/*
 .DS_Store
 .ipynb_checkpoints
